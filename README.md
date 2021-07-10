@@ -1,5 +1,6 @@
 # strings-grouping-algorithm
 algorithm to group strings based on their prefixes/suffixes given the numnber of groups and how many per group.
+there are some other nuances and rules with the algorithm, but that's pretty much it.
 
 
 for example, with the given groups number 6 and the number per group 2 the strings: \
