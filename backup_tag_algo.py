@@ -1,4 +1,4 @@
-#old tag algorithm (testing new one right now)
+#old tag algorithm (actually more reliable in most cases, but naive and worse with non-straightforward cases)
 
 import time as timer
 import copy
@@ -18,7 +18,6 @@ def split_teams(self, f, num_teams):
         per_team = int(f)
         teams = {} #tag: list of players
         player_copy = list(self.display_names.values()) if not self.IGNORE_FCS else list(copy.deepcopy(self.players).keys())
-        #print(player_copy)
         post_players = []
         
         i = 0
