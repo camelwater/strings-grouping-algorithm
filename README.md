@@ -1,7 +1,5 @@
 # strings-grouping-algorithm
 algorithm to group strings based on their prefixes/suffixes given the number of groups and how many per group.
-there are some other nuances and rules with the algorithm, but that's pretty much it.
-
 
 for example, let's say you have 12 strings and they are supposed to be grouped into 6 groups of 2: \
 **hello**, **hell!**, **ryan**, **my name is ryan**, **AAA**, **AHAHAHA**, **12345**, **123123**, **move**, **i move?**\
