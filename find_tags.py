@@ -4,32 +4,6 @@ from collections import defaultdict
 import copy
 import random as rand
 
-def find_substring_tags(un_players, teams): #unused right now (maybe should bring it back)
-    i = 0
-    while i<len(un_players):
-        tag = ''
-        longest_match = 1
-        match = 0
-        
-        for j in range(len(un_players)):
-            m = Utils.LCS(Utils.sanitize_uni(un_players[i].strip().lower()), Utils.sanitize_uni(un_players[j].strip().lower()))
-            if i!=j and len(m)>longest_match:
-                longest_match = len(m)
-                match= un_players[i], un_players[j]
-                tag = m
-
-        if match == 0 or tag == '':
-            i+=1
-        else:
-            temp_tag = tag
-            x = 1
-            while temp_tag in teams:
-                temp_tag = tag+"-"+str(x)
-                x+=1
-            teams[temp_tag] = list(match)
-            for p in match:
-                un_players.remove(p)
-
 def count_pre_tags(tag, players):
     count= 0
     for p in players:
@@ -186,29 +160,28 @@ def try_find_most_pre(players, tag, per_team, all_tags):
             all_tags[tag].discard(non_pre_players.pop(0))
 
 def handle_undetermined(teams, un_players, per_team):
-
     #substring tag for 2v2s check
     # if len(un_players)>0 and per_team==2:
     #     find_substring_tags(un_players, teams)
 
     def split():
-        split = list(Utils.chunks(un_players, per_team))
-        for i in split:
-            for ind,j in enumerate(i):
-                try:
-                    temp = check = Utils.replace_brackets(j)[0]
-                    d = 1
-                    while check.lower() in map(lambda o: o.lower(), list(teams)):
-                        check = f"{temp}-{d}"
-                        d+=1
-                    teams[check] = i
-                    break
-
-                except:
-                    if ind+1==len(i):
-                        teams[j[0][0]] = i
-                    else:
-                        continue
+            split = list(Utils.chunks(un_players, per_team))
+            for i in split:
+                for ind,j in enumerate(i):
+                    try:
+                        temp = check = Utils.replace_brackets(j)[0]
+                        d = 1
+                        while check.lower() in map(lambda o: o.lower(), list(teams)):
+                            check = f"{temp}-{d}"
+                            d+=1
+                        teams[check] = i
+                        break
+                    
+                    except:
+                        if ind+1==len(i):
+                            teams[j[0][0]] = i
+                        else:
+                            continue
 
     #randomly tag the rest (tag could not be determined)
     if len(un_players)>0:
@@ -245,7 +218,6 @@ def assert_correct(teams, un_players, per_team, num_teams, num_teams_supposed):
 
     while len(teams)>num_teams:
         for i in teams.items():
-            print(teams)
             if len(i[1])!=per_team:
                 popped = teams.pop(i[0])
                 try:
@@ -261,7 +233,36 @@ def assert_correct(teams, un_players, per_team, num_teams, num_teams_supposed):
             if del_player not in un_players:
                 un_players.append(del_player)
             teams[tag].remove(del_player)
-            
+
+
+def select_tops(all_tags, per_team, num_teams, num_teams_supposed, teams, players):
+    for tag, tag_players in copy.deepcopy(all_tags).items():
+        tag_players = all_tags[tag]
+        if len(tag_players)>per_team:
+            try_split_by_actual(tag_players, tag, per_team, all_tags)
+            check_other_overlaps(tag_players, tag, all_tags, per_team) 
+            #try_find_most_pre(tag_players, tag, per_team, all_tags)
+            try_split_chunks(tag_players, tag, per_team, all_tags)
+        if len(tag_players)>per_team:   
+            while len(tag_players)>per_team: #just randomly get rid of someone - either the format is wrong or the players' tags are bad (and impossible to get completely correct)
+                tag_players.discard(rand.choice(list(tag_players)))
+    
+    for _ in range(num_teams_supposed):
+        for x in all_tags.items():
+            all_tags[x[0]] = set([i for i in x[1] if i in players])
+        for x in list(all_tags.items())[::-1]:
+            if len(x[1])==0: all_tags.pop(x[0])
+        if len(all_tags)==0:
+            break
+        all_tags = dict(sorted(all_tags.items(), key=lambda item: (len(item[1]), sort_tags(item[0],item[1], per_team)), reverse=True))
+        teams[list(all_tags.keys())[0]] = list(all_tags[list(all_tags.keys())[0]])
+        for p in all_tags[list(all_tags.keys())[0]]:
+            try:
+                players.remove(p)
+            except:
+                pass
+        all_tags.pop(list(all_tags.keys())[0])
+
 def clean_tags(teams):
     def check_tag(t, add_self=False):
         count = 0
@@ -284,45 +285,14 @@ def clean_tags(teams):
         else:
             if isinstance(tag, tuple):
                 if not check_tag(tag[0], add_self=True):
-                    
                     new_tags.append((tag[0], ind))
                 else:
                     n_tag = tag[0]+'-'+str(tag[1])
                     new_tags.append((n_tag, ind))
+
     teams_copy = copy.deepcopy(teams)
     for nt, ind in new_tags:
         teams[nt] = teams.pop(list(teams_copy.keys())[ind])
-
-def select_tops(all_tags, per_team, num_teams, num_teams_supposed, teams, players):
-    for tag, tag_players in copy.deepcopy(all_tags).items():
-        tag_players = all_tags[tag]
-        if len(tag_players)>per_team:
-            try_split_by_actual(tag_players, tag, per_team, all_tags)
-            check_other_overlaps(tag_players, tag, all_tags, per_team) 
-            #try_find_most_pre(tag_players, tag, per_team, all_tags)
-            try_split_chunks(tag_players, tag, per_team, all_tags)
-        if len(tag_players)>per_team:   
-            while len(tag_players)>per_team: #just randomly get rid of someone - either the format is wrong or the players tags are bad (and impossible to get completely correct)
-                tag_players.discard(rand.choice(list(tag_players)))
-    
-    for _ in range(num_teams_supposed):
-        for x in copy.deepcopy(all_tags).items():
-            for player in x[1]:
-                if player not in players:
-                    all_tags[x[0]].remove(player)
-            if len(all_tags[x[0]]) == 0:
-                all_tags.pop(x[0])
-        if len(all_tags)==0:
-            break
-        all_tags = dict(sorted(all_tags.items(), key=lambda item: (len(item[1]), sort_tags(item[0],item[1], per_team)), reverse=True))
-        teams[list(all_tags.keys())[0]] = list(all_tags[list(all_tags.keys())[0]])
-        for p in all_tags[list(all_tags.keys())[0]]:
-            try:
-                players.remove(p)
-            except:
-                pass
-        all_tags.pop(list(all_tags.keys())[0])
-
 
 def find_possible_tags(players):
     all_tag_matches= defaultdict(list)
@@ -344,7 +314,6 @@ def find_possible_tags(players):
                                 or i_tag[:temp_indx] == j_tag[::-1][:temp_indx][::-1]):
                     
                     #print(temp_indx, players[i], players[j])
-                    #m_tag = Utils.sanitize_tag_uni(orig_i)[:temp_indx]
                     m_tag = Utils.sanitize_uni(orig_i)[:temp_indx].strip()
                     if len(m_tag) == 1: 
                         m_tag = m_tag.upper()
@@ -359,20 +328,18 @@ def find_possible_tags(players):
                                 or i_tag[::-1][:temp_indx][::-1] == j_tag[:temp_indx]):
                     
                     #print(temp_indx, players[i], players[j])
-                    #m_tag = Utils.sanitize_tag_uni(orig_i)[::-1][:temp_indx][::-1]
                     m_tag = Utils.sanitize_uni(orig_i)[::-1][:temp_indx][::-1].strip()
-
                     if len(m_tag) == 1: 
                         m_tag = m_tag.upper()
                     if m_tag[-1] == '-':
                         m_tag = m_tag[:-1]
-                  
+                
                     tag_matches[m_tag].add(players[i])
                     tag_matches[m_tag].add(players[j])
                     
             
         for tag, tagged_players in tag_matches.items():
-            if not any(tagged_players.issubset(e) for e in all_tag_matches[tag]):
+            if not any(tagged_players.issubset(e) for e in all_tag_matches[tag]): #does this improve performance? probably not too great of an effect
                 all_tag_matches[tag].append(tagged_players) #adding possible permutation for this tag (has to be new)
     return all_tag_matches
 
@@ -382,13 +349,15 @@ def tag_algo(players, per_team, num_teams):
     all_tag_matches = find_possible_tags(players)
 
     for tag, perms in all_tag_matches.items():
-        to_remove = []
-        for p1 in range(len(perms)):
+        p1 = 0
+        while p1< len(perms):
             for p2 in range(len(perms)):
-                if p1!=p2 and p2 not in to_remove and perms[p2].issubset(perms[p1]):
-                    to_remove.append(p2)
-        for tr in sorted(to_remove, reverse=True):
-            all_tag_matches[tag].pop(tr)
+                if p1!=p2 and perms[p1].issubset(perms[p2]):
+                    perms.pop(p1)
+                    p1-=1
+                    break
+            p1+=1
+
     for i in all_tag_matches.items():
         all_tag_matches[i[0]] = i[1][0]
 
@@ -407,11 +376,11 @@ def tag_algo(players, per_team, num_teams):
 
 if __name__ == "__main__":
     import time
-    #players = list({'x#1':0, 'xxx':0, 'Ryan@X':0, '¢unt':0, 'coolio': 0, 'cool kid cool': 0, "GG EZ": 0, 'gas mob':0, "gassed up":0, "kaya yanar":0, "yaya kanar":0, "yaka ranar":0}.keys())
+    # players = list({'x#1':0, 'xxx':0, 'Ryan@X':0, '¢ant':0, 'coolio': 0, 'cool kid cool': 0, "GG EZ": 0, 'gas mob':0, "gassed up":0, "kaya yanar":0, "yaya kanar":0, "yaka ranar":0}.keys())
     # players = ['hello', 'he123', 'borrowed time', 'WAX', 'barrel', 
     #             'A-1', 'what?', "WWW.PH.COM", "λxe", 'A-2', 'λp fraud', 'WOW!!']
     players = ['λρ Tom', 'A*', 'v¢ sauzule', 'saharave', 'MKW 4Beans', 'cadavreMK', 'coci loko', 'C', 'So[LLLLLL]', 'Zjazca', 'Z- stavros']
-   
+
     tick = time.time()
     print(tag_algo(players, per_team=2, num_teams=6))
     print("done: ", time.time()-tick)
