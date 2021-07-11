@@ -14,7 +14,7 @@ with # of groups = 2 and # per group = 3 \
 
 The algorithm also converts non-english characters and non-unicode characters (if possible), so an `Á` would be able to match with `A` and `λ¢Ξ$` would match to `ACES`.
 
-If the strings are impossible to group based on the given parameters (# groups and # per group), then the algorithm wouldn't be able to come up with anything useful. in that case, It would just randomly group strings into the given number of groups.
+If the strings are impossible to group based on the given parameters (# groups and # per group), then the algorithm wouldn't be able to come up with anything useful. In that case, it would just randomly group strings into the given number of groups.
 
 The algorithm isn't perfect of course. The most common situation where the algorithm could create wrong groups is when there are overlapping possible groups. For example, let's say you want to group the strings **AABB**, **BBCC**, **CCAA**, **CCBB**. For this group of strings, the algorithm would come up with the groups **CC**(_CCAA_, _CCBB_), **BB**(_AABB_, _BBCC_), but it is possible that the correct solution would be the groups: **AA**(_AABB_, _CCAA_), **BB**(_BBCC_, _CCBB_). 
 
