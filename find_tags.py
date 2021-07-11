@@ -114,16 +114,6 @@ def check_other_overlaps(players, tag, all_tags, per_team):
                         if len(all_tags[tag])<=per_team:
                             return
 
-    # for comp_tag, tag_p in all_tags.items():
-    #     if comp_tag == tag:
-    #         continue
-    #     for p in copy.copy(players):
-    #         if p in tag_p and len(tag_p) == per_team:
-    #             all_tags[tag].discard(p)
-
-    #             if len(all_tags[tag])<=per_team:
-    #                 return
-
 def try_split_by_actual(players, tag, per_team, all_tags):
     diff_actual_players = []
     for p in players:
@@ -172,7 +162,7 @@ def try_split_chunks(players, tag, per_team, all_tags):
         while temp in all_tags:
             temp = (tag, a) #tuple for duplicate tags (a bit annoying)
             a+=1
-        all_tags[temp] = g
+        all_tags[temp] = set(g)
 
 
 def try_find_most_pre(players, tag, per_team, all_tags):
@@ -202,23 +192,23 @@ def handle_undetermined(teams, un_players, per_team):
     #     find_substring_tags(un_players, teams)
 
     def split():
-            split = list(Utils.chunks(un_players, per_team))
-            for i in split:
-                for ind,j in enumerate(i):
-                    try:
-                        temp = check = Utils.replace_brackets(j)[0]
-                        d = 1
-                        while check.lower() in map(lambda o: o.lower(), list(teams)):
-                            check = f"{temp}-{d}"
-                            d+=1
-                        teams[check] = i
-                        break
-                    
-                    except:
-                        if ind+1==len(i):
-                            teams[j[0][0]] = i
-                        else:
-                            continue
+        split = list(Utils.chunks(un_players, per_team))
+        for i in split:
+            for ind,j in enumerate(i):
+                try:
+                    temp = check = Utils.replace_brackets(j)[0]
+                    d = 1
+                    while check.lower() in map(lambda o: o.lower(), list(teams)):
+                        check = f"{temp}-{d}"
+                        d+=1
+                    teams[check] = i
+                    break
+
+                except:
+                    if ind+1==len(i):
+                        teams[j[0][0]] = i
+                    else:
+                        continue
 
     #randomly tag the rest (tag could not be determined)
     if len(un_players)>0:
@@ -271,7 +261,37 @@ def assert_correct(teams, un_players, per_team, num_teams, num_teams_supposed):
             if del_player not in un_players:
                 un_players.append(del_player)
             teams[tag].remove(del_player)
+            
+def clean_tags(teams):
+    def check_tag(t, add_self=False):
+        count = 0
+        for i in list(teams.keys()):
+            if isinstance(i, tuple): 
+                i = i[0]+'-'+str(i[1])
+            if i.strip().lower() == t.strip().lower(): count+=1
+        if add_self:count+=1 
+        return count>1
 
+    new_tags = []
+    for ind, tag in enumerate(list(teams.keys())):
+        if not isinstance(tag, tuple) and check_tag(tag):
+            temp = tag
+            a = 1
+            while temp in teams:
+                temp = f'{tag}-{a}'
+                a+=1
+            new_tags.append((temp, ind))
+        else:
+            if isinstance(tag, tuple):
+                if not check_tag(tag[0], add_self=True):
+                    
+                    new_tags.append((tag[0], ind))
+                else:
+                    n_tag = tag[0]+'-'+str(tag[1])
+                    new_tags.append((n_tag, ind))
+    teams_copy = copy.deepcopy(teams)
+    for nt, ind in new_tags:
+        teams[nt] = teams.pop(list(teams_copy.keys())[ind])
 
 def select_tops(all_tags, per_team, num_teams, num_teams_supposed, teams, players):
     for tag, tag_players in copy.deepcopy(all_tags).items():
@@ -303,36 +323,6 @@ def select_tops(all_tags, per_team, num_teams, num_teams_supposed, teams, player
                 pass
         all_tags.pop(list(all_tags.keys())[0])
 
-def clean_tags(teams):
-    def check_tag(t, add_self=False):
-        count = 0
-        for i in list(teams.keys()):
-            if isinstance(i, tuple): 
-                i = i[0]+'-'+str(i[1])
-            if i.strip().lower() == t.strip().lower(): count+=1
-        if add_self:count+=1 
-        return count>1
-
-    new_tags = []
-    for ind, tag in enumerate(list(teams.keys())):
-        if not isinstance(tag, tuple) and check_tag(tag):
-            temp = tag
-            a = 1
-            while temp in teams:
-                temp = f'{tag}-{a}'
-                a+=1
-            new_tags.append((temp, ind))
-        else:
-            if isinstance(tag, tuple):
-                if not check_tag(tag[0], add_self=True):
-                    
-                    new_tags.append((tag[0], ind))
-                else:
-                    n_tag = tag[0]+'-'+str(tag[1])
-                    new_tags.append((n_tag, ind))
-    teams_copy = copy.deepcopy(teams)
-    for nt, ind in new_tags:
-        teams[nt] = teams.pop(list(teams_copy.keys())[ind])
 
 def find_possible_tags(players):
     all_tag_matches= defaultdict(list)
