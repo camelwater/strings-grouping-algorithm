@@ -345,7 +345,7 @@ def find_possible_tags(players):
                     
                     #print(temp_indx, players[i], players[j])
                     #m_tag = Utils.sanitize_tag_uni(orig_i)[:temp_indx]
-                    m_tag = Utils.sanitize_uni(orig_i.strip()[:temp_indx])
+                    m_tag = Utils.sanitize_uni(orig_i)[:temp_indx].strip()
                     if len(m_tag) == 1: 
                         m_tag = m_tag.upper()
                     if m_tag[-1] == '-':
@@ -360,7 +360,7 @@ def find_possible_tags(players):
                     
                     #print(temp_indx, players[i], players[j])
                     #m_tag = Utils.sanitize_tag_uni(orig_i)[::-1][:temp_indx][::-1]
-                    m_tag = Utils.sanitize_uni(orig_i.strip()[::-1][:temp_indx][::-1])
+                    m_tag = Utils.sanitize_uni(orig_i)[::-1][:temp_indx][::-1].strip()
 
                     if len(m_tag) == 1: 
                         m_tag = m_tag.upper()
