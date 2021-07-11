@@ -385,9 +385,9 @@ def tag_algo(players, per_team, num_teams):
         to_remove = []
         for p1 in range(len(perms)):
             for p2 in range(len(perms)):
-                if p1!=p2 and perms[p2].issubset(perms[p1]):
+                if p1!=p2 and p2 not in to_remove and perms[p2].issubset(perms[p1]):
                     to_remove.append(p2)
-        for tr in to_remove:
+        for tr in sorted(to_remove, reverse=True):
             all_tag_matches[tag].pop(tr)
     for i in all_tag_matches.items():
         all_tag_matches[i[0]] = i[1][0]
