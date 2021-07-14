@@ -31,21 +31,36 @@ def is_CJK(char):
 
 from unidecode import unidecode
 
-def sanitize_uni(string):
+def sanitize_uni(string, for_search = False):
     '''
-    convert known/common un-unidecodable strings to unicode, then strip all non-
-    Returns
-    -------
-    string with no CJK and non-unicode characters
+    convert known/common un-unidecodable and unicode strings to ASCII and clean string for tag-matching
+
     '''
-    
-    string = [CHAR_MAP.get(i, i) for i in string]
-    ret = list(unidecode(''.join(string)))
+ 
+    ret= []
+    for i in string:
+        i = CHAR_MAP.get(i, i)
+        if i in VALID_CHARS:
+            ret.append(i)
+            continue
+
+        n = unidecode(i)
+        if n=="":
+            n = " "
+        if n in VALID_CHARS:
+            ret.append(n)
+ 
+    if for_search:
+        return ''.join(ret)
+
     while len(ret)>0:
-        if ret[0] in PRE_REMOVE or ret[0] not in VALID_CHARS:
+        if ret[0] in PRE_REMOVE:
             ret.pop(0)
+        elif ret[-1] in POST_REMOVE:
+            ret.pop(-1)
         else:
             break
+
     return ''.join(ret)
 
 
