@@ -139,25 +139,25 @@ def try_split_chunks(players, tag, per_team, all_tags):
         all_tags[temp] = set(g)
 
 
-def try_find_most_pre(players, tag, per_team, all_tags):
-    prefix_players = []
-    non_pre_players = []
-    if len(players)<=per_team:
-        return
-    for p in players:
-        if Utils.sanitize_uni(p.strip()).lower().startswith(Utils.sanitize_uni(tag.strip()).lower()):
-            prefix_players.append(p)
-        else:
-            non_pre_players.append(p)
+# def try_find_most_pre(players, tag, per_team, all_tags):
+#     prefix_players = []
+#     non_pre_players = []
+#     if len(players)<=per_team:
+#         return
+#     for p in players:
+#         if Utils.sanitize_uni(p.strip()).lower().startswith(Utils.sanitize_uni(tag.strip()).lower()):
+#             prefix_players.append(p)
+#         else:
+#             non_pre_players.append(p)
 
-    if set(non_pre_players) == players:
-        return
+#     if set(non_pre_players) == players:
+#         return
 
-    if len(non_pre_players)>=per_team and len(players)-len(non_pre_players)>=per_team:
-        all_tags[Utils.sanitize_tag_uni(commonprefix(map(lambda o: o[::-1],list(non_pre_players))))] = non_pre_players
-    elif 0 < len(non_pre_players) < per_team:
-        while len(all_tags[tag])>per_team and len(non_pre_players)>0:
-            all_tags[tag].discard(non_pre_players.pop(0))
+#     if len(non_pre_players)>=per_team and len(players)-len(non_pre_players)>=per_team:
+#         all_tags[Utils.sanitize_tag_uni(commonprefix(map(lambda o: o[::-1],list(non_pre_players))))] = non_pre_players
+#     elif 0 < len(non_pre_players) < per_team:
+#         while len(all_tags[tag])>per_team and len(non_pre_players)>0:
+#             all_tags[tag].discard(non_pre_players.pop(0))
 
 def handle_undetermined(teams, un_players, per_team):
     #substring tag for 2v2s check
