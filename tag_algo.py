@@ -1,3 +1,4 @@
+# use commonprefix for pre and suf check then get all substrings of longest common to add to tag_matches
 import Utils
 from os.path import commonprefix
 from collections import defaultdict
