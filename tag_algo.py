@@ -92,6 +92,7 @@ def check_other_overlaps(players, tag, all_tags, per_team):
         for i in copy.copy(players):
             if i not in non_overlapped:
                 all_tags[tag].discard(i)
+        return
 
     for comp_tag, tag_p in all_tags.items():
         if comp_tag == tag:
