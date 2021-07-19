@@ -129,7 +129,7 @@ def check_other_overlaps(players, tag, all_tags, per_team):
 
 def try_split_by_actual(players, tag, per_team, all_tags):
     '''
-    split overflowing tags which have players who have different actual tag values and are actually a different tag.
+    split overflowing tags which have players who have different actual tag values and are supposed to have a different tag.
     '''
     #ex. 2 players currently in tag `A` are actually tag `λ`
 
