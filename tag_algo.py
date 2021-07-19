@@ -1,18 +1,22 @@
-# use commonprefix for pre and suf check then get all substrings of longest common to add to tag_matches
 import Utils
 from os.path import commonprefix
 from collections import defaultdict
 import copy
 import random as rand
+import time
 
 def count_pre_tags(tag, players):
-    count= 0
+    count = 0
     for p in players:
         if Utils.sanitize_uni(p.strip()).lower().startswith(Utils.sanitize_uni(tag.strip()).lower()):
             count+=1
     return count
 
 def sort_tags(tag, players, per_team):
+    '''
+    rank tags based on how likely they are to be correct tags.\n
+    prefix tags first, then suffix tags, then mixed tags
+    '''
     if isinstance(tag, tuple):
         tag = tag[0]
 
@@ -27,19 +31,47 @@ def sort_tags(tag, players, per_team):
     return pre_count
 
 def clean_overlaps(all_tags):
-    to_remove = []
-    for tag, players in all_tags.items():
-            for tag2, players2 in all_tags.items():
-                    if tag!=tag2 and players2.issubset(players) and len(tag2)<len(tag) and \
-                    (tag.lower().strip().startswith(tag2.lower().strip()) or tag.lower().strip().endswith(tag2.lower().strip())):
-                        if tag2 not in to_remove:
-                            to_remove.append(tag2)
-    
-    for r in to_remove:
-        all_tags.pop(r)
+    '''
+    get rid of tags that are subset of other tags (subset of players and subset of tag name)
+    '''
+    #if tag `P` has the same players as tag `Pro`, then get rid of `P`
 
+    i = 0
+    while i<len(all_tags):
+        item = list(all_tags.items())[i]
+        tag2, players2 = item[0], item[1]
+        for tag, players in all_tags.items():
+            if tag!=tag2 and players2.issubset(players) and (tag2.strip().lower()==tag.strip().lower() or (len(tag2)<len(tag) and \
+            (tag.lower().strip().startswith(tag2.lower().strip()) or tag.lower().strip().endswith(tag2.lower().strip())))):
+                
+                all_tags.pop(tag2)
+                i-=1
+                break
+        i+=1
+
+def squeeze_tag_matches(all_tag_matches):
+    '''
+    condense possible tags into one set per tag
+    '''
+    for _, perms in all_tag_matches.items():
+        p1 = 0
+        while p1< len(perms):
+            for p2 in range(len(perms)):
+                if p1!=p2 and perms[p1].issubset(perms[p2]):
+                    perms.pop(p1)
+                    p1-=1
+                    break
+            p1+=1
+    
+    for i in all_tag_matches.items():
+        all_tag_matches[i[0]] = i[1][0]
     
 def check_other_overlaps(players, tag, all_tags, per_team):
+    '''
+    check if players in overflowing tags either:\n
+    1. fit into a better sized team (correct number of players)\n
+    2. fit into a better tagged team (location of another tag is better than current)
+    '''
     def more_prefix(players, tag):
         return count_pre_tags(tag, players) >= int(len(players)/2)
     def more_suffix(players, tag):
@@ -77,7 +109,7 @@ def check_other_overlaps(players, tag, all_tags, per_team):
                     else:
                         all_tags[tag].discard(p)
                         if len(all_tags[tag])<=per_team:
-                            return
+                            return                            
 
                 elif Utils.sanitize_uni(p.strip()).lower().endswith(Utils.sanitize_uni(comp_tag.strip()).lower()) \
                     and not Utils.sanitize_uni(p.strip()).lower().endswith(Utils.sanitize_uni(tag.strip()).lower()) \
@@ -88,8 +120,19 @@ def check_other_overlaps(players, tag, all_tags, per_team):
                         all_tags[tag].discard(p)
                         if len(all_tags[tag])<=per_team:
                             return
+                
+                elif len(comp_tag)>len(tag) and (Utils.sanitize_uni(comp_tag.strip()).lower().startswith(Utils.sanitize_uni(tag.strip()).lower())
+                                            or Utils.sanitize_uni(comp_tag.strip()).lower().endswith(Utils.sanitize_uni(tag.strip()).lower())):
+                    all_tags[tag].discard(p)
+                    # if len(all_tags[tag])<=per_team:
+                    #     return
 
 def try_split_by_actual(players, tag, per_team, all_tags):
+    '''
+    split overflowing tags which have players who have different actual tag values and are actually a different tag.
+    '''
+    #ex. 2 players currently in tag `A` are actually tag `λ`
+
     diff_actual_players = []
     for p in players:
         if not (p.strip().lower().startswith(tag.lower()) or p.strip().lower().endswith(tag.lower())):
@@ -98,12 +141,18 @@ def try_split_by_actual(players, tag, per_team, all_tags):
         diff_actual_players = diff_actual_players[:per_team]
         for i in diff_actual_players:
             all_tags[tag].discard(i)
-            #players.discard(i)
 
         all_tags[Utils.sanitize_tag_uni(commonprefix(diff_actual_players))] = set(diff_actual_players)
     
         
 def try_split_chunks(players, tag, per_team, all_tags):
+    '''
+    split tags with too many people into even chunks.\n
+    prefix players and suffix players will try to be kept in their respective groupings
+    '''
+    # if tag has too many people at this point, then it is very likely that
+    # there are duplicate tags, meaning more than one team have the same tag (obviously this shouldn't happen and isn't allowed, but it can happen)
+
     def post_id(p):
         if Utils.sanitize_uni(p.strip()).lower().startswith(Utils.sanitize_uni(tag.strip()).lower()):
             return 0
@@ -161,30 +210,32 @@ def try_split_chunks(players, tag, per_team, all_tags):
 #             all_tags[tag].discard(non_pre_players.pop(0))
 
 def handle_undetermined(teams, un_players, per_team):
-    #substring tag for 2v2s check
-    # if len(un_players)>0 and per_team==2:
-    #     find_substring_tags(un_players, teams)
-
+    '''
+    try to tag players whose tags couldn't be determined.\n
+    first, fill tags that aren't full. then, if necessary, create random groupings.
+    '''
     def split():
-            split = list(Utils.chunks(un_players, per_team))
-            for i in split:
-                for ind,j in enumerate(i):
-                    try:
-                        temp = check = Utils.replace_brackets(j)[0]
+        split = list(Utils.chunks(un_players, per_team))
+        for r_team in split:
+            for ind,player in enumerate(r_team):
+                try:
+                    temp = check = Utils.replace_brackets(player)[0] #use first valid character from name as new tag
+                    d = 1
+                    while check.lower() in map(lambda o: o.lower(), teams.keys()):
+                        check = f"{temp}-{d}"
+                        d+=1
+                    teams[check] = r_team
+                    break
+                
+                except: #player has no valid characters in their name (can't use replace_brackets/sanitize_uni)
+                    if ind+1==len(r_team):
+                        temp = check = player[0]
                         d = 1
-                        while check.lower() in map(lambda o: o.lower(), list(teams)):
+                        while check.lower() in map(lambda o: o.lower(), teams.keys()):
                             check = f"{temp}-{d}"
                             d+=1
-                        teams[check] = i
-                        break
-                    
-                    except:
-                        if ind+1==len(i):
-                            teams[j[0][0]] = i
-                        else:
-                            continue
+                        teams[check] = r_team
 
-    #randomly tag the rest (tag could not be determined)
     if len(un_players)>0:
         is_all_filled = True
         for item in teams.items():
@@ -202,6 +253,9 @@ def handle_undetermined(teams, un_players, per_team):
             split()   
 
 def assert_correct(teams, un_players, per_team, num_teams, num_teams_supposed):
+    '''
+    fix tags which have more players than allowed.
+    '''
     found_num_teams = len(teams)
     corrupt_tags = []
     
@@ -214,13 +268,15 @@ def assert_correct(teams, un_players, per_team, num_teams, num_teams_supposed):
         or (found_num_teams<num_teams_supposed and len(un_players)>=(per_team*num_teams_supposed))))\
         and len(corrupt_tags)==0:
         return
-    if num_teams!=num_teams_supposed and len(corrupt_tags)==0:
+    if len(corrupt_tags)==0:
         return
 
-    while len(teams)>num_teams:
+    while len(teams)>num_teams and len(corrupt_tags)==0:
         for i in teams.items():
             if len(i[1])!=per_team:
                 popped = teams.pop(i[0])
+                try: corrupt_tags.remove(i[0])
+                except: pass
                 try:
                     un_players.extend(popped)
                 except:
@@ -237,12 +293,15 @@ def assert_correct(teams, un_players, per_team, num_teams, num_teams_supposed):
 
 
 def select_tops(all_tags, per_team, num_teams, num_teams_supposed, teams, players):
+    '''
+    choose best combination of tags.\n
+    first, resolve tag conflicts. then, go through tags and finalize top-ranked tags.
+    '''
     for tag, tag_players in copy.deepcopy(all_tags).items():
         tag_players = all_tags[tag]
         if len(tag_players)>per_team:
             try_split_by_actual(tag_players, tag, per_team, all_tags)
             check_other_overlaps(tag_players, tag, all_tags, per_team) 
-            #try_find_most_pre(tag_players, tag, per_team, all_tags)
             try_split_chunks(tag_players, tag, per_team, all_tags)
         if len(tag_players)>per_team:   
             while len(tag_players)>per_team: #just randomly get rid of someone - either the format is wrong or the players' tags are bad (and impossible to get completely correct)
@@ -265,6 +324,9 @@ def select_tops(all_tags, per_team, num_teams, num_teams_supposed, teams, player
         all_tags.pop(list(all_tags.keys())[0])
 
 def clean_tags(teams):
+    '''
+    fix duplicate tag names conflicts.
+    '''
     def check_tag(t, add_self=False):
         count = 0
         for i in list(teams.keys()):
@@ -296,25 +358,24 @@ def clean_tags(teams):
         teams[nt] = teams.pop(list(teams_copy.keys())[ind])
 
 def find_possible_tags(players):
+    '''
+    find all possible tag matches - any tag that has 2 or more matching players.
+    '''
+    #this does find duplicates, which makes it inefficient 
+
     all_tag_matches= defaultdict(list)
 
     for i in range(len(players)):
         tag_matches = defaultdict(set)
-        temp_indx = len(players[i])+1
         orig_i = players[i].strip()
         i_tag = Utils.sanitize_uni(orig_i).lower()
-        while temp_indx>1:
-            temp_indx-=1
-            
+        for temp_indx in range(len(players[i]), 0, -1):
             for j in range(len(players)):
                 if i==j: continue
 
                 j_tag = Utils.sanitize_uni(players[j].strip()).lower()
                 
-                if i!=j and (i_tag[:temp_indx] == j_tag[:temp_indx]
-                                or i_tag[:temp_indx] == j_tag[::-1][:temp_indx][::-1]):
-                    
-                    #print(temp_indx, players[i], players[j])
+                if (i_tag[:temp_indx] == j_tag[:temp_indx] or i_tag[:temp_indx] == j_tag[-temp_indx:]):
                     m_tag = Utils.sanitize_uni(orig_i)[:temp_indx].strip()
                     if len(m_tag) == 1: 
                         m_tag = m_tag.upper()
@@ -323,13 +384,9 @@ def find_possible_tags(players):
                     
                     tag_matches[m_tag].add(players[i])
                     tag_matches[m_tag].add(players[j])
-                
-                    
-                elif i!=j and (i_tag[::-1][:temp_indx][::-1] == j_tag[::-1][:temp_indx][::-1]
-                                or i_tag[::-1][:temp_indx][::-1] == j_tag[:temp_indx]):
-                    
-                    #print(temp_indx, players[i], players[j])
-                    m_tag = Utils.sanitize_uni(orig_i)[::-1][:temp_indx][::-1].strip()
+
+                if (i_tag[-temp_indx:] == j_tag[-temp_indx:] or i_tag[-temp_indx:] == j_tag[:temp_indx]):
+                    m_tag = Utils.sanitize_uni(orig_i)[-temp_indx:].strip()
                     if len(m_tag) == 1: 
                         m_tag = m_tag.upper()
                     if m_tag[-1] == '-':
@@ -340,48 +397,38 @@ def find_possible_tags(players):
                     
             
         for tag, tagged_players in tag_matches.items():
-            if not any(tagged_players.issubset(e) for e in all_tag_matches[tag]): #does this improve performance? probably not too great of an effect
-                all_tag_matches[tag].append(tagged_players) #adding possible permutation for this tag (has to be new)
+            if not any(tagged_players.issubset(e) for e in all_tag_matches[tag]):
+                all_tag_matches[tag].append(tagged_players) #adding possible combination for this tag
     return all_tag_matches
 
+
 def tag_algo(players, per_team, num_teams):
+    '''
+    split players into {num_teams} teams of {per_team} based on their tags.
+    '''
     teams = {}
+    supposed_teams = int(len(players)/per_team)
 
     all_tag_matches = find_possible_tags(players)
 
-    for tag, perms in all_tag_matches.items():
-        p1 = 0
-        while p1< len(perms):
-            for p2 in range(len(perms)):
-                if p1!=p2 and perms[p1].issubset(perms[p2]):
-                    perms.pop(p1)
-                    p1-=1
-                    break
-            p1+=1
-
-    for i in all_tag_matches.items():
-        all_tag_matches[i[0]] = i[1][0]
-
-    supposed_teams = int(len(players)/per_team)
+    squeeze_tag_matches(all_tag_matches)
     clean_overlaps(all_tag_matches) #get rid of tags that have overlapping players (such as shorter tags with subset of players)
-    select_tops(all_tag_matches, per_team, num_teams, supposed_teams, teams, players) #select best tags that meet requirements (sort by number with prefixes, and actual tags for ones with too many)
-    
+    select_tops(all_tag_matches, per_team, num_teams, supposed_teams, teams, players) #select best tags that meet requirements
+
     assert_correct(teams, players, per_team, num_teams, supposed_teams) #contingency in case of rare errors
     clean_tags(teams)
 
-    if len(players)>0:  
-        un_players = players
-        handle_undetermined(teams, un_players, per_team)
+    if len(players)>0: #players who weren't tagged
+        handle_undetermined(teams, players, per_team)
     
     return teams
 
 if __name__ == "__main__":
-    import time
-    # players = list({'x#1':0, 'xxx':0, 'Ryan@X':0, '¢ant':0, 'coolio': 0, 'cool kid cool': 0, "GG EZ": 0, 'gas mob':0, "gassed up":0, "kaya yanar":0, "yaya kanar":0, "yaka ranar":0}.keys())
-    # players = ['hello', 'he123', 'borrowed time', 'WAX', 'barrel', 
-    #             'A-1', 'what?', "WWW.PH.COM", "λxe", 'A-2', 'λp fraud', 'WOW!!']
-    players = ['λρ Tom', 'A*', 'v¢ sauzule', 'saharave', 'MKW 4Beans', 'cadavreMK', 'coci loko', 'C', 'So[LLLLLL]', 'Zjazca', 'Z- stavros']
-
+    players = ['Ac☆Mirymeg', 'Z☆', 'WC top 2', 'Player-1', 'MonkeyTime', 'z おk', 'Ac Stubbz', 'Hosseini','MΞ☆Mγτh','Hτ chξΣ◇€£', 'Player-2', 'WC △△◎◎♪☆○']
+    
     tick = time.time()
-    print(tag_algo(players, per_team=2, num_teams=6))
-    print("done: ", time.time()-tick)
+    teams = tag_algo(players, per_team=2, num_teams=6)
+    #print(dict(sorted(t.items(), key = lambda l: l[0])))
+    print(teams)
+    print("\ntime:", time.time()-tick)
+   
