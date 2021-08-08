@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-
-import Utils
+import utils.Utils as Utils
 from os.path import commonprefix
 from collections import defaultdict
 import copy
 import random as rand
+from itertools import chain
+from functools import reduce, partial
+import tag_testing.simulatedAnnealingTag as simAnl
 
 def get_test_case(large = False):
     """
@@ -25,7 +27,7 @@ def get_test_case(large = False):
         players2 = ['asldkjadheaslkjdaskjdhlaksjdahdsllo', 'hasd123123213.kjadshaliskdjho876e123', 'borrowed timasd;laasdllndlksdhaposdu98q2ee', 'WAasd.kj.asdas.da.dsasd.asd.asd.a adshiaosda8dsX', 'basdkjasda  sda qe e j12oei1eahdlkajdsyao8ds7yarrel', 
                     'A-asdlkadslkajdhlla192837192akjsdh1', 'whasdoqiouewiuy12o13y4183476184716894124at?', "WWW.Pasdalj;lsdhaldksjhlkaH.COM", "λxeasdlkahdsasdsd ds adaalsda98", 'Aasdlkaskldjahsd9a8y-2', 'λp frasdjlhalkdsjsasdlaksjdhadsd90ayaud', 'WOwowowowowowowowowowoowowowowowowW!!']
         players3 = ['λρ ToOOOOOOOOOOOOOOoooooooooooom', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA*', 'v¢ bvbvbvvvvvvvvvvvvvvvvvvvvvvvvvvvvvbvbvbvbvsauzule', 'sahasdjasdkjadshlkajsdhlakdsarave', 'MasdkjjdslakjdshlaksdjhKW 4Beans', 'cadasdasldhadjh9y01984y1944144avreMK', 'cocia;lskdhklajsdhasdo9y loko', 'Casdkjadhlajdasdasdhlkdsho9shap9sd8y', 'So[akjsdhakljdshaoisduyads8yLLLLLL]', 'Zjazasda,smdda   asddnadsasdasdca', 'Z- stavrosaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa']
-        players+=players2+players7+players8+players4+players5+players6+players3+players9
+        players+=players2+players7+players8+players4+players5+players6+players3+players9*44
 
         seen = []
         lengths = []
@@ -36,20 +38,24 @@ def get_test_case(large = False):
             else:
                 temp = i
                 a =1
-                while temp not in seen:
+                while temp in seen:
                     temp = f'{i}-{a}'
+                    a+=1
                 seen.append(temp)
                 players[ind] = temp
-                lengths.append(len(i))
+                lengths.append(len(temp))
+        
     else:
         # players = list({'x#1':0, 'xxx':0, 'Ryan@X':0, '¢ant':0, 'coolio': 0, 'cool kid cool': 0, "GG EZ": 0, 'gas mob':0, "gassed up":0, "kaya yanar":0, "yaya kanar":0, "yaka ranar":0}.keys())
         players = ['hello', 'he123', 'borrowed time', 'WAX', 'barrel', 
-                    'A-1', 'what?', "WWW.PH.COM", "λxe", 'A-2', 'λp fraud', 'WOW!!']
-        # players = ['λρ Tom', 'A*', 'v¢ sauzule', 'saharave', 'MKW 4Beans', 'cadavreMK', 'coci loko', 'C', 'So[LLLLLL]', 'Zjazca', 'Z- stavros', 'vc Dane']
+                    'A-1', 'what?', "WWW.PH.COM", "BWλHλHλ", 'Ã', 'λp fraud', 'WOW!!']
+        players = ['Mo taz', 'Mo Matt', 'Mo Jαggγ', 'Mo Sal', 'Mo Jos', 'Prιngle@MV', 'MV Noah', 'MV stripe', 'MV L-boaT', 'MV yax']
+        # players = ['λρ Tom', 'A*', 'v¢ sauzule', 'saharave', 'MKW 4Beans', 'cadavreMK', 'coci loko', 'C', 'So[LLLLLL]', 'Zjazca', 'Z- stavros']
         # players = ['AYA hello', '!!m&m?!', 'mong', 'MV math', 'pringle@MV', '@*', 'AYAYA', 'i need ZZZ', 'Z - stop', 'USA h', 'USA K', 'ABBA']
         # players = ['Æ big', 'PP hi', "PP powerplant", 'PP POWERGRID', 'Æ vamp', 'PP ger', 'Æ hello', 'Æ oo', 'big PP', 'shuyx@Æ']
         # players = ['Ac☆Mirymeg', 'Z☆', 'WC top 2', 'Player', 'MonkeyTime', 'z おk', 'Ac Stubbz', 'Hosseini','MΞ☆Mγτh','Hτ chξΣ◇€£', 'Player', 'WC △△◎◎♪☆○']
-        # players = ['Ac☆Mirymeg', 'ZabbatheHUT☆', 'WC top 2', 'Player-', 'Mi gusta s', 'z おk', 'Ac Stubbz', 'BARGAINING FOR MONEY','MΞ☆Mγτh','Bτ chξΣ◇€£SE', 'Player', 'World CUP WINNER △△◎◎♪☆○']
+        players= ['A◇山周回のれみ','CRYLIXDAWN', 'さぼA', 'DG★mila*', 'C☆Latent', 'Player-1','Dovi', 'らいよんのRemi', 'にしのだいせんせい',
+                    'Player-2', 'ライオンのRemi', 'だいせんせい', 'ωΖ hALr', '[ωZ] PogU']
 
     return players, (lengths if large else None)
 
@@ -82,7 +88,7 @@ def clean_subsets(all_tags):
     '''
     get rid of tags that are subset of other tags (subset of players and subset of tag name)
     '''
-    #if tag `P` has the same players as tag `Pro`, then get rid of `P`
+    #ex. if tag `P` has the same players as tag `Pro`, then get rid of `P`
 
     i = 0
     while i<len(all_tags):
@@ -96,14 +102,14 @@ def clean_subsets(all_tags):
                 break
         i+=1
 
-def squeeze_tag_matches(all_tag_matches):
-    '''
-    condense tags into one set per tag
-    '''
-   
-    for tag, sets in all_tag_matches.items():
-        all_tag_matches[tag] = set().union(*sets)
-    
+def overlaps(p, tag, all_tags, per_team):
+    num_overlaps = 0
+    for x, x_players in all_tags.items():
+        if x==tag: continue
+        if p in x_players and len(x_players)==per_team:
+            num_overlaps+=1
+    return num_overlaps
+
 def check_overlaps(players, tag, all_tags, per_team):
     '''
     check if players in overflowing tags either:\n
@@ -114,23 +120,17 @@ def check_overlaps(players, tag, all_tags, per_team):
         return count_pre_tags(tag, players) >= int(len(players)/2)
     def more_suffix(players, tag):
         return count_pre_tags(tag, players) < int(len(players)/2)
-    
-    def overlaps(p):
-        num_overlaps = 0
-        for x, x_players in all_tags.items():
-            if x==tag: continue
-            if p in x_players and len(x_players)==per_team:
-                num_overlaps+=1
-        return num_overlaps
 
     if len(players)<=per_team: return
 
-    non_overlapped = [i for i in players if overlaps(i)==0]
+    non_overlapped = [i for i in players if overlaps(i, tag, all_tags, per_team)==0]
     if len(non_overlapped)==per_team:
         for i in copy.copy(players):
             if i not in non_overlapped:
                 all_tags[tag].discard(i)
         return
+
+    iter = sorted(list(players), key=lambda l: (1 if overlaps(l, tag, all_tags, per_team)==1 else 0, 0 if l[0].startswith(tag.lower()) else 1))
 
     for comp_tag, tag_p in all_tags.items():
         if comp_tag == tag:
@@ -139,32 +139,63 @@ def check_overlaps(players, tag, all_tags, per_team):
             comp_tag = comp_tag[0]
 
         comp_tag_uni = Utils.sanitize_uni(comp_tag).lower()
-        iter = sorted(list(players), key=lambda l: (0 if overlaps(l)==1 else 1, 1 if l[0].startswith(tag.lower()) else 0))
-        for p in iter:
-            if p in tag_p and len(tag_p) == per_team:
-                if p[0].startswith(comp_tag_uni) and not p[0].startswith(tag.lower()) \
+        for p in iter[::-1]:
+            if p in tag_p and len(tag_p)>=per_team: 
+                if len(comp_tag)>len(tag) and (comp_tag_uni.startswith(tag.lower())
+                                            or comp_tag_uni.endswith(tag.lower())):
+                    all_tags[tag].discard(p)
+                    iter.remove(p)
+
+                # elif not len(non_overlapped)<per_team and all([True if overlaps(i, tag, all_tags, per_team)==1 else False for i in tag_p]):
+                #     all_tags[tag].discard(p)
+                #     iter.remove(p)
+                    # if len(all_tags[tag])<=per_team:
+                    #         return
+
+                elif p[0].startswith(comp_tag_uni) and not p[0].startswith(tag.lower()) \
                         and more_prefix(all_tags[comp_tag], comp_tag) and not more_suffix(all_tags[tag], tag):
-                    if overlaps(p)==1:
+                    if overlaps(p, tag, all_tags, per_team)==1:
                         all_tags[tag].discard(p)
-                    else:
+                        iter.remove(p)
+                    elif len(tag_p)==per_team and len(all_tags[tag])>per_team:
                         all_tags[tag].discard(p)
+                        iter.remove(p)
                         if len(all_tags[tag])<=per_team:
                             return                            
 
                 elif p[0].endswith(comp_tag_uni) and not p[0].endswith(tag.lower()) \
                         and more_suffix(all_tags[comp_tag], comp_tag) and not more_prefix(all_tags[tag], tag):
-                    if overlaps(p)==1:
+                    if overlaps(p, tag, all_tags, per_team)==1:
                         all_tags[tag].discard(p)
-                    else:
+                        iter.remove(p)
+                    elif len(tag_p)==per_team and len(all_tags[tag])>per_team:
                         all_tags[tag].discard(p)
+                        iter.remove(p)
                         if len(all_tags[tag])<=per_team:
                             return
                 
-                elif len(comp_tag)>len(tag) and (comp_tag_uni.startswith(tag.lower())
-                                            or comp_tag_uni.endswith(tag.lower())):
-                    all_tags[tag].discard(p)
-                    # if len(all_tags[tag])<=per_team:
-                    #     return
+                
+def ngram(seq: str, n: int):
+    return (seq[i: i+n] for i in range(0, len(seq)-n+1))
+
+def allngram(seq: str, minn=1, maxn=None):
+    lengths = range(minn, maxn+1) if maxn else range(minn, len(seq))
+    ngrams = map(partial(ngram, seq), lengths)
+    return set(chain.from_iterable(ngrams))
+
+def commonaffix(group):
+    maxn = min(map(len, group))
+    seqs_ngrams = map(partial(allngram, maxn=maxn), group)
+    intersection = reduce(set.intersection, seqs_ngrams)
+    try:
+        all_presub = sorted(intersection, key=len, reverse=True)
+        for sub in all_presub:
+            if all([i.startswith(sub) or i.endswith(sub) for i in group]):
+                return sub
+
+        return ""
+    except:
+        return ""
 
 def split_by_actual(players, tag, per_team, all_tags):
     '''
@@ -172,19 +203,29 @@ def split_by_actual(players, tag, per_team, all_tags):
     '''
     #ex. 2 players currently in tag `A` are actually tag `λ`
 
+    def actual_matches(p, diff_players):
+        return len([i for i in diff_players if commonaffix([p, i[1]])!=""])
+
     diff_actual_players = []
-    temp_diff_players = []
     for p in players:
         p_a = p[1].strip().lower()
         if not (p_a.startswith(tag.lower()) or p_a.endswith(tag.lower())):
             diff_actual_players.append(p)
-            temp_diff_players.append(p_a)
-    if len(diff_actual_players)>=per_team and len(players)-len(diff_actual_players)>=per_team:
-        diff_actual_players = diff_actual_players[:per_team]
-        for i in diff_actual_players:
-            all_tags[tag].discard(i)
+    
+    if per_team<=len(diff_actual_players)<len(players) : # and len(players)-len(diff_actual_players)>=per_team
+        if len(diff_actual_players)>per_team:
+            diff_actual_players = sorted(diff_actual_players, key = lambda l: actual_matches(l[1], diff_actual_players), reverse=True)
+            diff_actual_players = diff_actual_players[:per_team]
+        temp_diff_players = list(map(lambda l: l[1], diff_actual_players))
 
-        all_tags[Utils.sanitize_tag_uni(commonprefix(temp_diff_players)).strip()] = set(diff_actual_players)
+        actual_tag = Utils.sanitize_tag_uni(commonaffix(temp_diff_players)).strip()
+        if actual_tag=="":
+            return
+        for t in all_tags.keys():
+            for i in diff_actual_players:
+                all_tags[t].discard(i)
+
+        all_tags[actual_tag] = set(diff_actual_players)
     
         
 def split_chunks(players, tag, per_team, all_tags):
@@ -193,13 +234,13 @@ def split_chunks(players, tag, per_team, all_tags):
     prefix players and suffix players will try to be kept in their respective groupings
     '''
     # if tag has too many people at this point, then it is very likely that
-    # their are duplicate tags, meaning more than one team have the same tag (obviously shouldn't happen and isn't allowed)
+    # there are duplicate tags, meaning more than one team has the same tag (obviously shouldn't happen and isn't allowed)
 
-    def post_id(p):
+    def post_id(p) :
         p = p[0]
         if p.startswith(tag.lower()):
-            return 0
-        return 1
+            return 1
+        return 0
 
     if len(players)<=per_team:
         return
@@ -207,22 +248,29 @@ def split_chunks(players, tag, per_team, all_tags):
     pre = []
     post = []
     mash = []
-    indx = (int(len(players)/per_team)-1)*per_team
-    players = sorted(list(players), key=lambda l: post_id(l), reverse=True)
+    # indx = (int(len(players)/per_team)-1)*per_team
+    indx = per_team
+    players = sorted(list(players), key=lambda l: (overlaps(l, tag, all_tags, per_team),post_id(l)), reverse=True)
     if indx == 0: indx = 1
-    for p in (players)[indx:]:
-        if p[0].startswith(tag.lower()):
-            pre.append(p)
-        else:
-            post.append(p)
-    
-    all_tags[tag] = set(players[:indx])
-    while len(pre)%per_team!=0:
-        mash.append(pre.pop(-1))
-    while len(post)%per_team!=0:
-        mash.append(post.pop(-1))
-    pre_chunks = list(Utils.chunks(pre, per_team))
-    post_chunks = list(Utils.chunks(post, per_team))
+    if len(players[indx:])<per_team:
+        mash = players[indx:]
+        post_chunks = []
+        pre_chunks = []
+        all_tags[tag] = set(players[:indx])
+    else:
+        for p in players[indx:]:
+            if p[0].startswith(tag.lower()):
+                pre.append(p)
+            else:
+                post.append(p)
+        
+        all_tags[tag] = set(players[:indx])
+        while len(pre)%per_team!=0:
+            mash.append(pre.pop(-1))
+        while len(post)%per_team!=0:
+            mash.append(post.pop(-1))
+        pre_chunks = list(Utils.chunks(pre, per_team))
+        post_chunks = list(Utils.chunks(post, per_team))
 
     for g in pre_chunks+post_chunks+[mash]:
         if len(g)==0: continue
@@ -232,13 +280,14 @@ def split_chunks(players, tag, per_team, all_tags):
             temp = (tag, a) #tuple for duplicate tags (a bit annoying)
             a+=1
         all_tags[temp] = set(g)
-        
+
+
 def handle_undetermined(teams, un_players, per_team):
     '''
     try to tag players whose tags couldn't be determined.\n
     first, fill tags that aren't full. then, if necessary, create random groupings.
     '''
-   
+
     def split():
         split = list(Utils.chunks(un_players, per_team))
         for r_team in split:
@@ -252,7 +301,7 @@ def handle_undetermined(teams, un_players, per_team):
                     teams[check] = r_team
                     break
                 
-                except: #player has no valid characters in their name (can't use sanitize_uni)
+                except: #player has no valid characters in their name 
                     if ind+1==len(r_team):
                         temp = check = player[1][0]
                         d = 1
@@ -261,23 +310,20 @@ def handle_undetermined(teams, un_players, per_team):
                             d+=1
                         teams[check] = r_team
 
-    if len(un_players)>0:
-        is_all_filled = True
-        for tag in teams.items():
-                if len(tag[1])<per_team:
-                    is_all_filled = False
-                    break
-        
-        if not is_all_filled:
-            for tag in teams.items():
-                while len(tag[1])<per_team and len(un_players)>0:
-                    tag[1].append(un_players.pop(0))
-                if len(un_players)==0:
-                    return
-            if len(un_players)>0:
-                split()
-        else:
-            split()   
+    is_all_filled = False if len(list(teams.values())[-1])<per_team else True
+
+    if not is_all_filled:
+        for tag in list(teams.items())[::-1]:
+            if not len(tag[1])<per_team:
+                break
+            while len(tag[1])<per_team and len(un_players)>0:
+                tag[1].append(un_players.pop(0))
+            if len(un_players)==0:
+                return
+        if len(un_players)>0:
+            split()
+    else:
+        split()   
 
 def assert_correct(teams, un_players, per_team, num_teams, num_teams_supposed):
     '''
@@ -301,10 +347,7 @@ def assert_correct(teams, un_players, per_team, num_teams, num_teams_supposed):
             for tag, players in teams.items():
                 if len(players)!=per_team:
                     popped = teams.pop(tag)
-                    try:
-                        un_players.extend(popped)
-                    except:
-                        pass
+                    un_players.extend(popped)
                     break
     
     for tag in corrupt_tags:
@@ -321,6 +364,7 @@ def select_top(all_tags, per_team, num_teams, num_teams_supposed, teams, players
     choose best combination of tags.\n
     first, resolve tag conflicts. then, go through tags and finalize top-ranked tags.
     '''
+    # all_tags = dict(sorted(all_tags.items(), key=lambda l: len(l[1]), reverse=True))
     for tag, tag_players in copy.deepcopy(all_tags).items():
         tag_players = all_tags[tag]
         if len(tag_players) <= per_team: continue
@@ -329,25 +373,32 @@ def select_top(all_tags, per_team, num_teams, num_teams_supposed, teams, players
         check_overlaps(tag_players, tag, all_tags, per_team) 
         split_chunks(tag_players, tag, per_team, all_tags)
 
+        if len(tag_players)<=per_team: continue  
         #just randomly get rid of someone at this point - either the format is wrong or the players' tags are bad (and impossible to get completely correct)
+        overlapped_players = [i for i in tag_players if overlaps(i, tag, all_tags, per_team)>0]
         while len(tag_players)>per_team: 
-            tag_players.discard(rand.choice(list(tag_players)))
-    
+            if len(overlapped_players)>0:
+                # tag_players.discard(overlapped_players.pop(rand.randint(0, len(overlapped_players)-1)))
+                tag_players.discard(overlapped_players.pop(-1))
+            else:
+                tag_players.pop()
+                # tag_players.discard(rand.choice(list(tag_players)))
     for _ in range(num_teams_supposed):
-        for x in all_tags.items():
-            all_tags[x[0]] = set([i for i in x[1] if i in players])
         for x in list(all_tags.items())[::-1]:
-            if len(x[1])==0: all_tags.pop(x[0])
+            new_set = set([i for i in x[1] if i in players])
+            if len(new_set)==0: 
+                all_tags.pop(x[0])
+            else:
+                all_tags[x[0]] = new_set
         if len(all_tags)==0:
             break
-        all_tags = dict(sorted(all_tags.items(), key=lambda item: (len(item[1]), rank_tags(item[0],item[1], per_team)), reverse=True))
-        teams[list(all_tags.keys())[0]] = list(all_tags[list(all_tags.keys())[0]])
-        for p in all_tags[list(all_tags.keys())[0]]:
-            try:
-                players.remove(p)
-            except:
-                pass
-        all_tags.pop(list(all_tags.keys())[0])
+        all_tags = dict(sorted(all_tags.items(), key=lambda tag: (len(tag[1]), rank_tags(tag[0],tag[1], per_team), len(tag[0])), reverse=True))
+        top_key = list(all_tags.keys())[0]
+        teams[top_key] = list(all_tags[top_key])
+        for p in all_tags[top_key]:
+            players.remove(p)
+
+        all_tags.pop(top_key)
 
 def squeeze_player_names(teams):
     for tag, p in teams.items():
@@ -363,35 +414,31 @@ def fix_tags(teams):
             if isinstance(i, tuple): 
                 i = i[0]+'-'+str(i[1])
             if i.strip().lower() == t.strip().lower(): count+=1
-        if add_self:count+=1 
+        if add_self: count+=1 
         return count>1
 
-    new_tags = []
-    for ind, tag in enumerate(list(teams.keys())):
+    for tag in list(teams.keys())[::-1]:
         if not isinstance(tag, tuple) and dup_tag(tag):
             temp = tag
             a = 1
             while temp in teams:
                 temp = f'{tag}-{a}'
                 a+=1
-            new_tags.append((temp, ind))
+            teams[temp] = teams.pop(tag)
         elif isinstance(tag, tuple):
             if not dup_tag(tag[0], add_self=True):
-                new_tags.append((tag[0], ind))
+                teams[tag[0]] = teams.pop(tag)
             else:
                 n_tag = tag[0]+'-'+str(tag[1])
-                new_tags.append((n_tag, ind))
+                teams[n_tag] = teams.pop(tag)
             
-    teams_copy = copy.deepcopy(teams)
-    for nt, ind in new_tags:
-        teams[nt] = teams.pop(list(teams_copy.keys())[ind])
-
+  
 def find_possible_tags(players):
     '''
     find all possible tag matches - any tag that has 2 or more matching players.
     '''
     #this does find duplicates, which makes it inefficient 
-    all_tag_matches= defaultdict(list)
+    all_tag_matches= defaultdict(set)
 
     for i in range(len(players)):
         tag_matches = defaultdict(set)
@@ -406,17 +453,18 @@ def find_possible_tags(players):
                 
                 if (i_tag[:temp_indx] == j_tag[:temp_indx] or i_tag[:temp_indx] == j_tag[-temp_indx:]):
                     m_tag = Utils.sanitize_uni(orig_i)[:temp_indx].strip()
-                    if len(m_tag) == 1: 
-                        m_tag = m_tag.upper()
-                    if m_tag[-1] == '-':
-                        m_tag = m_tag[:-1]
-                    
-                    tag_matches[m_tag].add(players[i])
-                    tag_matches[m_tag].add(players[j])
+                    if len(m_tag)>0:
+                        if len(m_tag) == 1: 
+                            m_tag = m_tag.upper()
+                        if m_tag[-1] == '-':
+                            m_tag = m_tag[:-1]
+                        
+                        tag_matches[m_tag].add(players[i])
+                        tag_matches[m_tag].add(players[j])
 
                 if (i_tag[-temp_indx:] == j_tag[-temp_indx:] or i_tag[-temp_indx:] == j_tag[:temp_indx]):
-                    #[::-1][:temp_indx][::-1]
                     m_tag = Utils.sanitize_uni(orig_i)[-temp_indx:].strip()
+                    if len(m_tag)==0: continue
                     if len(m_tag) == 1: 
                         m_tag = m_tag.upper()
                     if m_tag[-1] == '-':
@@ -427,8 +475,8 @@ def find_possible_tags(players):
                     
             
         for tag, tagged_players in tag_matches.items():
-            if not any(tagged_players.issubset(e) for e in all_tag_matches[tag]):
-                all_tag_matches[tag].append(tagged_players) #adding possible combination for this tag
+            if not (tagged_players.issubset(all_tag_matches[tag])):
+                all_tag_matches[tag].update(tagged_players) #adding possible combination for this tag
     return all_tag_matches
 
 
@@ -444,30 +492,41 @@ def tag_algo(players, per_team, num_teams):
 
     all_tag_matches = find_possible_tags(players)
 
-    squeeze_tag_matches(all_tag_matches)
-    clean_subsets(all_tag_matches) #get rid of tags that have overlapping players (such as shorter tags with subset of players)
+    clean_subsets(all_tag_matches) #get rid of tags that have overlapping players (shorter tags with subset of players)
     select_top(all_tag_matches, per_team, num_teams, supposed_teams, teams, players) #select best tags that meet requirements
-
-    assert_correct(teams, players, per_team, num_teams, supposed_teams) #contingency in case of rare errors
+    # assert_correct(teams, players, per_team, num_teams, supposed_teams) #contingency in case of rare errors
     fix_tags(teams)
 
     if len(players)>0: #players who weren't tagged
+        teams = dict(sorted(teams.items(), key=lambda l: len(l[1]), reverse=True))
         handle_undetermined(teams, players, per_team)
     
     squeeze_player_names(teams)
-    
+
     return teams
 
 if __name__ == "__main__":
     import time
     
-    players, lengths = get_test_case(large=False)
-    tick = time.time()
-    teams = tag_algo(players, per_team=2, num_teams=6)
+    large = False
+    players, lengths = get_test_case(large=large)
+    rand.shuffle(players)
+
+    tick = time.perf_counter()
+    per_team = 2
+    teams = tag_algo(players, per_team=per_team, num_teams=6)
     # print(dict(sorted(t.items(), key = lambda l: l[0])))
-    print(teams)
-    print("\nPERFORMANCE:", time.time()-tick)
+    if not large: print(teams)
+    print("\nPERFORMANCE: {:.15f}".format(time.perf_counter()-tick))
     
     if lengths:
         print('avg length:', sum(lengths)/len(lengths))
         print(len(lengths))
+    
+    L = []
+    for tag, p in teams.items():
+        if tag.find('-')>=len(tag)/2 and tag[tag.find('-'):].isnumeric():
+            tag = tag[tag.find('-')]
+        L.append([Utils.sanitize_uni(tag).lower(), list(map(lambda l: (Utils.sanitize_uni(l.strip()).lower(), l), p))])
+    cost_check = simAnl.SimulatedAnnealing(L, per_team)
+    print("cost:",cost_check.E(L))
