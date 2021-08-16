@@ -1,4 +1,4 @@
-#old tag algorithm (actually more reliable in most cases, but naive and worse with non-straightforward cases)
+#old tag algorithm (pretty bad, yes)
 
 import time as timer
 import copy
