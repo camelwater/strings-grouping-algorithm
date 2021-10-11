@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import utils.Utils as Utils
 import utils.tagUtils as tagUtils
-# from os.path import commonprefix
 from collections import defaultdict
 import copy
 import random as rand
@@ -196,6 +195,7 @@ def check_overlaps(players: Set[Tuple[str, str]], tag: Tag, all_tags: Dict[Tag, 
                 if len(all_tags[tag])<=per_team:
                     return
 
+
 def split_by_actual(players: Set[Tuple[str, str]], tag: Tag, per_team: int, all_tags: Dict[Tag, Set[Tuple[str, str]]]):
     '''
     split overflowing tags which have players who have different actual tag values and are supposed to have a different tag.
@@ -203,7 +203,7 @@ def split_by_actual(players: Set[Tuple[str, str]], tag: Tag, per_team: int, all_
     #ex. 2 players currently in tag `A` are actually tag `λ`
 
     def actual_matches(p, diff_players):
-        return len([i for i in diff_players if commonaffix([p, i[1]])!=""])
+        return len([1 for i in diff_players if tagUtils.common_actual_affix(p.lower(), i[1].lower())])
 
     diff_actual_players = []
     for p in players:
@@ -248,7 +248,6 @@ def split_chunks(players: Set[Tuple[str, str]], tag: Tag, per_team: int, all_tag
     pre = []
     post = []
     mash = []
-    # indx = (int(len(players)/per_team)-1)*per_team
     indx = per_team
     players = sorted(list(players), key=lambda l: (overlaps(l, tag, all_tags, per_team),post_id(l)), reverse=True)
     if indx == 0: indx = 1
@@ -445,13 +444,6 @@ def find_possible_tags(players: List[Tuple[str, str]]):
             if i==j: continue
             
             j_tag = players[j][0]
-            
-            #don't iterate through string if it's guaranteed to not match
-            # i_set = {i_tag[0], i_tag[-1]}
-            # j_set = {j_tag[0], j_tag[-1]}
-            # if len(i_set.intersection(j_set)) == 0:
-            #     continue
-
             for temp_indx in range(len(i_tag), 0, -1):
                 if i_tag[:temp_indx] == j_tag[:temp_indx] or i_tag[:temp_indx] == j_tag[-temp_indx:]:
                     # m_tag = tagUtils.sanitize_uni(orig_i)[:temp_indx].strip()
@@ -662,8 +654,8 @@ def create_test(large=False, batch=False, select = None):
 if __name__ == "__main__":
     import time
     
-    large = False
-    batch = True
+    large = True
+    batch = False
     select = 10
     if batch: large=False
     create_test(large, batch, select = select)
