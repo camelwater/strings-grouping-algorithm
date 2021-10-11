@@ -16,6 +16,7 @@ class Tag:
             self.tag = (tag, dup_num)
         else:
             self.tag = tag
+        self.eq_tag: str = str(self.tag).lower()
         self.sanitized_tag: str = tagUtils.sanitize_uni(self.get_tag()).lower()
 
     def get_tag(self) -> str:
@@ -36,7 +37,7 @@ class Tag:
     
     def __eq__(self, o: object) -> bool:
         try:
-            return str(self.tag).lower() == str(o.tag).lower()
+            return self.eq_tag == o.eq_tag
         except:
             return False
 
@@ -248,6 +249,7 @@ def split_chunks(players: Set[Tuple[str, str]], tag: Tag, per_team: int, all_tag
     pre = []
     post = []
     mash = []
+    # indx = (int(len(players)/per_team)-1)*per_team
     indx = per_team
     players = sorted(list(players), key=lambda l: (overlaps(l, tag, all_tags, per_team),post_id(l)), reverse=True)
     if indx == 0: indx = 1
@@ -444,6 +446,13 @@ def find_possible_tags(players: List[Tuple[str, str]]):
             if i==j: continue
             
             j_tag = players[j][0]
+            
+            #don't iterate through string if it's guaranteed to not match
+            # i_set = {i_tag[0], i_tag[-1]}
+            # j_set = {j_tag[0], j_tag[-1]}
+            # if len(i_set.intersection(j_set)) == 0:
+            #     continue
+
             for temp_indx in range(len(i_tag), 0, -1):
                 if i_tag[:temp_indx] == j_tag[:temp_indx] or i_tag[:temp_indx] == j_tag[-temp_indx:]:
                     # m_tag = tagUtils.sanitize_uni(orig_i)[:temp_indx].strip()
@@ -610,7 +619,7 @@ def batch_test(players, batch_num=100):
     '''
     PASSES = [71.25, 17.25, 9.75, 2.25, 4.5, 12.0, 0.0, 7.25, 0.0, 2.25]
     TEAMS = [(2,6),(2,6),(2,6),(2,6),(2,6),(2,6),(2,6),(2,6),(2,6),(2,6)]
-    PERF_PASS = 0.005
+    PERF_PASS = 0.007
     results = list()
     for ind, set in enumerate(range(len(players))):
         set_res = list()
@@ -655,10 +664,8 @@ if __name__ == "__main__":
     import time
     
     large = True
-    batch = False
+    batch = True
     select = 10
     if batch: large=False
     create_test(large, batch, select = select)
-    #find_possible_tags faster than commonaffix (maybe should change for split_acutal_tag)
-
     
