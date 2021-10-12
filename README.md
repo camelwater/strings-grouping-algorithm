@@ -1,6 +1,8 @@
 # strings-grouping-algorithm
 An algorithm to group strings based on their prefixes/suffixes given the number of groups and number of strings per group.
 
+For optimization algorithm implementations of this algorithm, check [here][https://www.github.com/camelwater/String-Grouping-Optimization-Algorithms].
+
 For example, let's say you have 12 strings and they are supposed to be grouped into 6 groups of 2: \
 **hello**, **hell!**, **ryan**, **my name is ryan**, **AAA**, **AHAHAHA**, **12345**, **123123**, **move**, **i move?**\
 would be grouped into: **hell**(_hello_, _hell!_), **ryan**(_ryan_, _my name is ryan_), **A**(_AAA_, _AHAHAHA_), **123**(_12345_, _123123_), **move**(_move_, _i move?_)
