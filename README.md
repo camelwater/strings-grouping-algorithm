@@ -8,7 +8,7 @@ would be grouped into: **hell**(_hello_, _hell!_), **ryan**(_ryan_, _my name is 
 Another example:\
 with # of groups = 2 and # per group = 3 \
 **USA!USA!**, **i'm from USA**, **i like usa**, **bacon**, **i am bad**, **bad strings** would group into:\
-**USA**(_USA!USA!_, _i hate usa_, _i like usa_), **ba**(_bacon_, _i am bad_, _bad strings_)
+**USA**(_USA!USA!_, _i'm from USA_, _i like usa_), **ba**(_bacon_, _i am bad_, _bad strings_)
 
 The algorithm also converts non-english characters and non-unicode characters (if possible), so an `Á` would be able to match with `A` and `λ¢Ξ$` would match to `ACES`.
 
